@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSAR Management Platform</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2128; --border:#30363d;
+    --txt:#e6edf3; --dim:#8b949e; --accent:#58a6ff;
+    --overdue:#f85149; --soon:#ff8c42; --today:#d29922; --ok:#3fb950; --closed:#8b949e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;padding:24px}
+  a{color:var(--accent);text-decoration:none}
+  header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  h1{font-size:20px;font-weight:600;letter-spacing:.2px}
+  .sub{color:var(--dim);font-size:12px;margin-top:4px}
+  .disclaimer{background:#3d1d1d;border:1px solid #8b2c2c;color:#ffc9c9;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:20px;line-height:1.7}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+  .kpi .label{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+  .kpi .value{font-size:26px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
+  .kpi .hint{color:var(--dim);font-size:11px;margin-top:2px}
+  .v-overdue{color:var(--overdue)} .v-soon{color:var(--soon)}
+  .v-today{color:var(--today)} .v-ok{color:var(--ok)} .v-closed{color:var(--closed)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .card h2{font-size:13px;font-weight:600;padding:12px 16px;border-bottom:1px solid var(--border);color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+  .card .body{padding:14px 16px}
+  .bar-row{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}
+  .bar-track{background:var(--panel2);border-radius:4px;height:18px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:4px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+  th:hover{color:var(--txt)}
+  td{padding:9px 10px;border-bottom:1px solid #21262d}
+  tr:hover td{background:var(--panel2)}
+  tr.sel td{background:#16324f}
+  .tbl-wrap{max-height:460px;overflow:auto}
+  .pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10.5px;font-weight:600;letter-spacing:.3px;white-space:nowrap}
+  .p-OVERDUE{background:#5c1a1a;color:#ff9d9d}
+  .p-DUE_TODAY{background:#5c3417;color:#ffc08a}
+  .p-DUE_SOON{background:#4d3c12;color:#ffd980}
+  .p-ON_TRACK{background:#123d1f;color:#8ee6a3}
+  .p-EXTENDED{background:#1a3a5c;color:#9dc8ff}
+  .p-CLOSED{background:#30363d;color:var(--dim)}
+  .p-RECEIVED{background:#30363d;color:var(--dim)}
+  .p-IDENTITY_VERIFICATION{background:#4d3c12;color:#ffd980}
+  .p-IN_PROGRESS{background:#1a3a5c;color:#9dc8ff}
+  .p-CLARIFICATION_REQUESTED{background:#3d2d5c;color:#c9b3ff}
+  .p-CLARIFICATION_ANSWERED{background:#2d3d5c;color:#9dc8ff}
+  .p-COMPLETED{background:#123d1f;color:#8ee6a3}
+  .p-PARTIALLY_COMPLETED{background:#4d3c12;color:#ffd980}
+  .p-DENIED{background:#5c1a1a;color:#ff9d9d}
+  .p-WITHDRAWN{background:#30363d;color:var(--dim)}
+  .p-EXPIRED{background:#30363d;color:var(--dim)}
+  .p-PENDING{background:#4d3c12;color:#ffd980} .p-RUNNING{background:#1a3a5c;color:#9dc8ff}
+  .p-NOT_FOUND{background:#30363d;color:var(--dim)} .p-ERROR{background:#5c1a1a;color:#ff9d9d}
+  .art{background:#1a3a5c;color:#9dc8ff;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:700;margin-left:4px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  select,input{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:6px 10px;border-radius:6px;font-size:12px;font-family:inherit}
+  select:focus,input:focus{outline:none;border-color:var(--accent)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .empty{padding:32px;text-align:center;color:var(--dim)}
+  .detail{font-size:12px;line-height:1.9}
+  .detail .row{display:grid;grid-template-columns:112px 1fr;gap:10px;padding:5px 0;border-bottom:1px solid #21262d}
+  .detail .k{color:var(--dim)}
+  .detail .v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+  .explain{background:var(--panel2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:10px 12px;font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.7}
+  .warn{background:#3d2d1d;border:1px solid #8c6d2c;color:#ffd980;padding:8px 12px;border-radius:6px;font-size:11.5px;margin-top:10px;line-height:1.7}
+  .tabs{display:flex;gap:6px;padding:0 16px;border-bottom:1px solid var(--border)}
+  .tab{padding:9px 12px;font-size:12px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}
+  .tab.on{color:var(--txt);border-bottom-color:var(--accent)}
+  code{background:var(--panel2);padding:1px 5px;border-radius:3px;font-size:11.5px;color:var(--accent)}
+  .foot{color:var(--dim);font-size:11.5px;line-height:1.8}
+  .footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--border);color:var(--dim);font-size:11.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>DSAR Management Platform</h1>
+    <div class="sub">GDPR Art. 12–22 数据主体请求 · 身份核验 → 法定时限 → 跨系统检索编排 → 脱敏交付 → 留存销毁</div>
+  </div>
+  <div class="sub">API: <a href="/docs">/docs</a> · <span id="ts">加载中…</span></div>
+</header>
+
+<div class="disclaimer">
+  <b>⚠️ 合成演示数据声明</b> —— 本页所有姓名、邮箱、证件号、卡号、企业系统名均为<strong>虚构构造值</strong>，
+  由 <code>app/models/seed.py</code> 生成。本项目<strong>未对接</strong>任何真实的 HR / CRM / 客服 / 分析系统，
+  <strong>不包含</strong>任何真实用户的个人数据，<strong>不是</strong>任何公司的真实合规记录，
+  也不代表作者持有任何隐私合规认证。
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid">
+  <div class="card">
+    <h2>法定时限分布（按有效到期日）</h2>
+    <div class="body" id="deadline-bars"></div>
+  </div>
+  <div class="card">
+    <h2>请求类型分布（GDPR 权利）</h2>
+    <div class="body" id="type-bars"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+  <h2>请求清单 —— 点击行查看期限判定与合规解释</h2>
+  <div class="body">
+    <div class="filters">
+      <select id="f-status"><option value="">全部状态</option></select>
+      <select id="f-type"><option value="">全部权利类型</option></select>
+      <select id="f-juris"><option value="">全部法域</option></select>
+      <select id="f-deadline">
+        <option value="">全部期限状态</option>
+        <option value="OVERDUE">OVERDUE 超期</option>
+        <option value="DUE_TODAY">DUE_TODAY 今日到期</option>
+        <option value="DUE_SOON">DUE_SOON 即将到期</option>
+        <option value="ON_TRACK">ON_TRACK 正常在途</option>
+        <option value="EXTENDED">EXTENDED 已延长</option>
+        <option value="CLOSED">CLOSED 已关闭</option>
+      </select>
+      <input id="f-search" placeholder="搜索请求号 / 姓名 / 邮箱" style="min-width:190px">
+      <span class="sub" id="count"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>请求号</th><th>权利类型</th><th>法域</th><th>状态</th>
+          <th>核验</th><th class="num">检索</th><th>有效到期日</th>
+          <th class="num">剩余</th><th>期限状态</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+  <h2>请求详情</h2>
+  <div class="body" id="detail"><div class="empty">选择上方任一请求查看详情</div></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>法域时限策略（可配置）</h2>
+    <div class="body" id="policies"></div>
+  </div>
+  <div class="card">
+    <h2>数据主体权利 ↔ 条款对照</h2>
+    <div class="body" id="rights"><div class="empty">加载中…</div></div>
+  </div>
+</div>
+
+<div class="footer">
+  <div>DSAR Management Platform · 合成演示数据 · 不构成任何合规结论</div>
+  <div>Python 3.11+ · FastAPI · SQLite (WAL) · 纯标准库无前端构建</div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let ALL = [];
+
+async function get(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(url + ' → ' + r.status);
+  return r.json();
+}
+
+function pill(v, cls){ return `<span class="pill p-${esc(cls||v)}">${esc(v)}</span>`; }
+
+// ---------- 加载 ----------
+async function boot(){
+  const [ov, reqs, pol, rts] = await Promise.all([
+    get('/api/overview'), get('/api/requests?limit=300'),
+    get('/api/deadlines/policies'), get('/api/rights'),
+  ]);
+  ALL = reqs.requests;
+  renderKpis(ov);
+  renderDeadlineBars(ov.deadline_buckets);
+  renderTypeBars(ov.by_request_type, rts.rights);
+  renderFilters(ov, rts);
+  renderPolicies(pol);
+  renderRights(rts);
+  renderRows();
+  $('#ts').textContent = new Date().toLocaleString('zh-CN');
+}
+
+function renderKpis(o){
+  const d = o.deadline_buckets;
+  const cards = [
+    ['请求总数', o.total_requests, `进行中 ${o.open_requests}`, ''],
+    ['超期 OVERDUE', d.OVERDUE || 0, '可被监管问责的时限违规', 'v-overdue'],
+    ['今日到期', d.DUE_TODAY || 0, 'Art.12(3) 当日必须答复', 'v-today'],
+    ['7 天内到期', d.DUE_SOON || 0, '需立即推进', 'v-soon'],
+    ['正常在途', d.ON_TRACK || 0, '含已合法延长', 'v-ok'],
+    ['按时交付率', o.on_time_delivery_rate + '%', `已关闭 ${o.closed_requests} 条`, ''],
+  ];
+  $('#kpis').innerHTML = cards.map(([l, v, h, c]) =>
+    `<div class="kpi"><div class="label">${esc(l)}</div>
+     <div class="value ${c}">${esc(v)}</div><div class="hint">${esc(h)}</div></div>`).join('');
+}
+
+function bar(label, n, total, color){
+  const pct = total ? Math.round(100 * n / total) : 0;
+  return `<div class="bar-row"><span>${esc(label)}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span class="num">${n}</span></div>`;
+}
+
+function renderDeadlineBars(b){
+  const colors = {OVERDUE:'var(--overdue)', DUE_TODAY:'var(--today)', DUE_SOON:'var(--soon)',
+                  ON_TRACK:'var(--ok)', EXTENDED:'var(--accent)', CLOSED:'var(--closed)'};
+  const total = Object.values(b).reduce((a, x) => a + x, 0);
+  $('#deadline-bars').innerHTML =
+    Object.entries(b).map(([k, v]) => bar(k, v, total, colors[k] || 'var(--dim)')).join('');
+}
+
+function renderTypeBars(byType, rights){
+  const total = Object.values(byType).reduce((a, x) => a + x, 0) || 1;
+  const color = {'ACCESS':'#58a6ff','ERASURE':'#f85149','PORTABILITY':'#3fb950',
+                 'RECTIFICATION':'#d29922','RESTRICTION':'#ff8c42',
+                 'OBJECTION':'#a371f7','AUTOMATED_DECISION':'#79c0ff'};
+  $('#type-bars').innerHTML = rights.map(r => {
+    const n = byType[r.code] || 0;
+    return `<div class="bar-row" title="${esc(r.gdpr_article)} · ${esc(r.ccpa_equivalent)}">
+      <span>${esc(r.name_zh)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(100*n/total)}%;background:${color[r.code]||'#8b949e'}"></div></div>
+      <span class="num">${n}</span></div>`;
+  }).join('');
+}
+
+function renderFilters(o, rts){
+  const fill = (sel, vals, key, label) => {
+    $(sel).insertAdjacentHTML('beforeend', vals.map(v =>
+      `<option value="${esc(v[key])}">${esc(v[label])}</option>`).join(''));
+  };
+  fill('#f-status', Object.keys(o.by_status).map(s => ({k:s})), 'k', 'k');
+  fill('#f-type', rts.rights, 'code', 'name_zh');
+  fill('#f-juris', Object.keys(o.by_jurisdiction).map(s => ({k:s})), 'k', 'k');
+
+  ['#f-status','#f-type','#f-juris','#f-deadline'].forEach(s => $(s).addEventListener('change', renderRows));
+  $('#f-search').addEventListener('input', renderRows);
+  document.querySelectorAll('th').forEach(th => th.addEventListener('click', () => {
+    if(!th.dataset.k) return;
+    ALL.sort((a, b) => String(a[th.dataset.k] ?? '').localeCompare(String(b[th.dataset.k] ?? ''), 'zh'));
+    renderRows();
+  }));
+}
+
+function renderRows(){
+  const st = $('#f-status').value, ty = $('#f-type').value, ju = $('#f-juris').value,
+        dl = $('#f-deadline').value, q = $('#f-search').value.trim().toLowerCase();
+  const rows = ALL.filter(r =>
+    (!st || r.status === st) && (!ty || r.request_type === ty) && (!ju || r.jurisdiction === ju) &&
+    (!dl || r.deadline.status === dl) &&
+    (!q || [r.request_id, r.full_name, r.email].some(x => String(x||'').toLowerCase().includes(q)))
+  );
+  $('#count').textContent = `${rows.length} / ${ALL.length} 条`;
+  $('#rows').innerHTML = rows.map(r => {
+    const d = r.deadline;
+    const left = d.status === 'CLOSED' ? '—' : d.days_remaining;
+    const lc = d.status === 'OVERDUE' ? 'v-overdue' : (d.status === 'DUE_TODAY' ? 'v-today' :
+               (d.status === 'DUE_SOON' ? 'v-soon' : (d.status === 'ON_TRACK' ? 'v-ok' : 'v-closed')));
+    return `<tr data-id="${esc(r.request_id)}">
+      <td><b>${esc(r.request_id)}</b></td>
+      <td>${esc((r.right||{}).name_zh || r.request_type)}
+          <span class="art">${esc((r.right||{}).gdpr_article || '')}</span></td>
+      <td>${esc(r.jurisdiction)}</td>
+      <td>${pill(r.status)}</td>
+      <td>${pill(r.verification_status || 'PENDING')}</td>
+      <td class="num">${r.total_tasks ? r.total_tasks - r.open_tasks : 0}/${r.total_tasks || 0}</td>
+      <td>${esc(d.effective_due_date)}</td>
+      <td class="num ${lc}">${esc(left)}</td>
+      <td>${pill(d.status)}</td></tr>`;
+  }).join('') || `<tr><td colspan="9" class="empty">无匹配请求</td></tr>`;
+
+  document.querySelectorAll('#rows tr[data-id]').forEach(tr =>
+    tr.addEventListener('click', () => showDetail(tr.dataset.id)));
+}
+
+async function showDetail(id){
+  document.querySelectorAll('#rows tr').forEach(tr => tr.classList.remove('sel'));
+  const tr = document.querySelector(`#rows tr[data-id="${id}"]`);
+  if(tr) tr.classList.add('sel');
+
+  const d = await get('/api/requests/' + id);
+  const r = d.request, dl = d.deadline;
+  const row = (k, v) => `<div class="row"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`;
+  const v = d.verifications[d.verifications.length - 1];
+  const worst = Object.entries(d.discovery_summary.by_status)
+    .sort((a,b) => b[1]-a[1]).map(([k,n]) => `${k} ${n}`).join(' · ');
+
+  $('#detail').innerHTML = `<div class="detail">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <b style="font-size:14px">${esc(r.request_id)}</b>${pill(r.status)}
+      ${pill((d.right||{}).gdpr_article||'')} ${esc(d.status_description)}
+    </div>
+    ${row('请求类型', `${r.request_type} · ${(d.right||{}).name_zh||''}`)}
+    ${row('法域 / 法规', `${r.jurisdiction} · ${dl.regulation} · ${dl.citation}`)}
+    ${row('受理渠道', r.channel + ' · ' + r.priority)}
+    ${row('受理日', r.received_date)}
+    ${row('原始到期日', dl.due_date)}
+    ${row('延长后到期日', dl.extended_due_date || '—')}
+    ${row('有效到期日', dl.effective_due_date + (dl.extension_granted ? '（已依法延长）' : ''))}
+    ${row('时钟暂停', dl.clock_stopped_days + ' 天（Art.12(6)）')}
+    ${row('期限状态', dl.status + ' · 剩余 ' + dl.days_remaining + ' 天')}
+    ${row('身份核验', v ? `${v.method} · ${v.status} · 置信度 ${v.confidence_score}` : '未发起')}
+    ${row('检索收敛', `${d.discovery_summary.resolved_count}/${d.discovery_summary.total} · ${worst}`)}
+    ${row('响应交付', d.deliveries.length ? `${d.deliveries.length} 份 · 最近 ${d.deliveries[0].status}` : '无')}
+    <div class="explain">${esc(dl.explanation)}</div>
+    ${dl.warnings.map(w => `<div class="warn">⚠️ ${esc(w)}</div>`).join('')}
+  </div>`;
+}
+
+function renderPolicies(pol){
+  $('#policies').innerHTML = `<table><thead><tr>
+      <th>法域</th><th>依据</th><th>期限</th><th>可延长</th><th>说明</th></tr></thead><tbody>` +
+    pol.policies.map(p => `<tr>
+      <td><b>${esc(p.jurisdiction)}</b></td>
+      <td>${esc(p.citation)}</td>
+      <td>${esc(p.deadline)}</td>
+      <td>${esc(p.extension)}</td>
+      <td class="foot">${esc(p.notes)}</td></tr>`).join('') + '</tbody></table>';
+}
+
+function renderRights(rts){
+  $('#rights').innerHTML = `<table><thead><tr>
+      <th>权利</th><th>GDPR</th><th>CCPA/CPRA 对应</th></tr></thead><tbody>` +
+    rts.rights.map(r => `<tr>
+      <td><b>${esc(r.name_zh)}</b><br><span class="sub">${esc(r.code)}</span></td>
+      <td>${esc(r.gdpr_article)}</td>
+      <td class="foot">${esc(r.ccpa_equivalent)}</td></tr>`).join('') + '</tbody></table>';
+}
+
+boot().catch(e => {
+  $('#ts').textContent = '加载失败：' + e.message;
+  console.error(e);
+});
+</script>
+</body>
+</html>
