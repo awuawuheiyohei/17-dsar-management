@@ -629,7 +629,7 @@ def extend_request(request_id: str, payload: dict = Body(...)):
 @router.post("/requests/{request_id}/clarify")
 def request_clarification(request_id: str, payload: dict = Body(...)):
     """
-    Art. 12(6) 向数据主体索取补充信息 —— 时钟暂停。
+    向数据主体索取补充信息 —— 时钟暂停（行业实践；Art. 12(6) 授权的是身份核验）。
 
     暂停天数受法域上限约束（EU 默认 60 天），防止无限期挂起请求。
     """
@@ -664,7 +664,7 @@ def request_clarification(request_id: str, payload: dict = Body(...)):
         )
         write_audit(conn, _actor(payload), "clarification_requested", "dsar_request", request_id,
                     {"question": question, "clock_stop_days": stop_days,
-                     "citation": "GDPR Art. 12(6)"},
+                     "citation": "行业实践（GDPR 无明文时钟暂停条款）"},
                     actor_role=str(payload.get("actor_role") or "ANALYST"))
         updated = _load_request(conn, request_id)
 

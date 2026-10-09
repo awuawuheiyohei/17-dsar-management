@@ -17,7 +17,9 @@
        ├──► PARTIALLY_COMPLETED
        ├──► DENIED             (需: 法定拒绝理由 + 说明 + 审批)
        └──► WITHDRAWN
-    (任何未关闭状态) ──► EXPIRED   (长期无响应，Art.12(6) 实践)
+    (任何未关闭状态) ──► EXPIRED   (长期无响应，按内部老化策略关闭；非 GDPR 条款)
+
+注意：Art. 12(6) 授权的是「身份核验」，与「关闭请求」无关。
 
 转换规则集中在本文件，API 只调用 `validate_transition`，
 不自己拼字符串 —— 这样非法跳转不可能绕过校验。
@@ -231,11 +233,11 @@ def explain_status(status: str) -> str:
         RECEIVED: "已受理，尚未开始身份核验",
         IDENTITY_VERIFICATION: "正在核验请求者身份（Art. 12(6)）",
         IN_PROGRESS: "核验通过，正在跨系统检索数据",
-        CLARIFICATION_REQUESTED: "已向数据主体索取补充信息，时钟暂停（Art. 12(6)）",
+        CLARIFICATION_REQUESTED: "已向数据主体索取补充信息，期限按行业实践暂停（非 GDPR 明文条款）",
         CLARIFICATION_ANSWERED: "已收到补充信息，等待恢复处理",
         COMPLETED: "已完整履行该权利并交付响应",
         PARTIALLY_COMPLETED: "部分履行（部分系统被法定例外排除）",
         DENIED: "已按法定理由拒绝（Art. 12(4) 要求告知理由）",
         WITHDRAWN: "数据主体主动撤回",
-        EXPIRED: "长期未响应，按 Art. 12(6) 实践关闭",
+        EXPIRED: "长期无响应，按内部老化策略关闭（非 GDPR 条款）",
     }.get((status or "").upper(), "未知状态")

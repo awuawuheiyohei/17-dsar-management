@@ -308,7 +308,7 @@ async function showDetail(id){
     ${row('原始到期日', dl.due_date)}
     ${row('延长后到期日', dl.extended_due_date || '—')}
     ${row('有效到期日', dl.effective_due_date + (dl.extension_granted ? '（已依法延长）' : ''))}
-    ${row('时钟暂停', dl.clock_stopped_days + ' 天（Art.12(6)）')}
+    ${row('时钟暂停', dl.clock_stopped_days + ' 天（行业实践，非 GDPR 明文条款）')}
     ${row('期限状态', dl.status + ' · 剩余 ' + dl.days_remaining + ' 天')}
     ${row('身份核验', v ? `${v.method} · ${v.status} · 置信度 ${v.confidence_score}` : '未发起')}
     ${row('检索收敛', `${d.discovery_summary.resolved_count}/${d.discovery_summary.total} · ${worst}`)}

@@ -18,7 +18,7 @@ GDPR Art. 12(3) 的期限表述是 "in any event within one month of receipt"。
    请求复杂或数量众多时可延长两个月，但**必须在收到请求后一个月内通知数据主体**。
    没有 extension_notified_at 的延长是非法的，期限不予采信。
 
-2. **时钟暂停（Art. 12(6)）**
+2. **时钟暂停（行业实践，非 GDPR 明文条款）**
    控制者向数据主体索取补充信息期间，期限暂停。若不建模这一点，
    所有「已向对方索要信息」的请求都会被系统误判为超期。
 """
@@ -79,10 +79,10 @@ class DeadlinePolicy:
     extension_months: int = 0       # 允许的延长量
     extension_days: int = 0
     max_extensions: int = 1
-    clock_stop_allowed: bool = True  # Art.12(6) 时钟暂停
+    clock_stop_allowed: bool = True  # 时钟暂停开关（GDPR 无明文条款，仅 EU/UK 开启）
     max_clock_stop_days: int = 60    # 暂停上限，防止无限期挂起
     citation: str = ""
-    clock_stop_citation: str = ""    # 时钟暂停的依据（各法域条款不同，不能都写 Art.12(6)）
+    clock_stop_citation: str = ""    # 时钟暂停的依据（GDPR/CCPA/PIPL 均无明文条款，须如实标注）
     notes: str = ""
 
     @property
@@ -120,6 +120,17 @@ class DeadlinePolicy:
 
 
 # 时限以公开法规文本为准；notes 里写清本实现的简化假设。
+#
+# 关于「时钟暂停」的引用说明（重要，避免误引）：
+#   GDPR Art. 12(6) 的原文是「对请求者身份有合理怀疑时，可要求提供确认身份
+#   所需的补充信息」——它授权的是**身份核验**，并未规定可以暂停 Art. 12(3)
+#   的答复期限。GDPR 中**没有**明文的「时钟暂停」条款。
+#   因此本实现把两者严格区分开：
+#     - 身份核验 → Art. 12(6)          （有明文依据）
+#     - 时钟暂停 → 标注为「实践做法」，依据是 Art. 12(3) 的 "without undue
+#       delay" + EDPB 关于「请求在被完整提出后才起算」的实践口径，
+#       属于行业惯例而非成文法条款。
+#   这样标注是为了让审计输出可被法务复核——把惯例说成法条会误导决策。
 POLICIES: dict[str, DeadlinePolicy] = {
     "EU": DeadlinePolicy(
         jurisdiction="EU",
@@ -129,9 +140,13 @@ POLICIES: dict[str, DeadlinePolicy] = {
         extension_months=2,
         max_extensions=1,
         citation="GDPR Art. 12(3)",
-        clock_stop_citation="GDPR Art. 12(6)",
+        clock_stop_citation="行业实践（非 GDPR 明文条款）· 依据 Art. 12(3) "
+                            "'without undue delay' + EDPB 口径",
         notes="收到请求后一个月内答复；请求复杂或数量众多可延长两个月，"
-              "但须在同一期限内通知数据主体。等待补充信息期间时钟暂停（Art. 12(6)）。",
+              "但须在同一期限内通知数据主体。等待补充信息期间的暂停属行业实践："
+              "GDPR 无明文时钟暂停条款，本实现按 Art. 12(3) 的 'without undue delay' "
+              "与「请求完整提出后起算」口径处理，并设上限防止无限期挂起。"
+              "注意：Art. 12(6) 授权的是身份核验，不是时钟暂停。",
     ),
     "UK": DeadlinePolicy(
         jurisdiction="UK",
@@ -141,8 +156,10 @@ POLICIES: dict[str, DeadlinePolicy] = {
         extension_months=2,
         max_extensions=1,
         citation="UK GDPR Art. 12(3)",
-        clock_stop_citation="UK GDPR Art. 12(6)",
-        notes="与 EU 一致；DPA 2018 另有第 52 条_fee 机制用于无依据的过度请求。",
+        clock_stop_citation="行业实践（非 UK GDPR 明文条款）· 依据 Art. 12(3) "
+                            "'without undue delay'",
+        notes="与 EU 一致；DPA 2018 第 52 条为无依据的过度请求提供收费机制。"
+              "Art. 12(6) 在 UK GDPR 下同样只授权身份核验。",
     ),
     "CA": DeadlinePolicy(
         jurisdiction="CA",
@@ -151,12 +168,16 @@ POLICIES: dict[str, DeadlinePolicy] = {
         deadline_days=45,
         extension_days=45,
         max_extensions=1,
-        clock_stop_allowed=True,
-        max_clock_stop_days=45,
-        citation="Cal. Civ. Code §1798.130(a)(2)",
-        clock_stop_citation="Cal. Civ. Code §1798.130(a)(2)(C)",
+        # CCPA 没有明文「时钟暂停」条款：它给的是「可延长 45 天」的机制，
+        # 且延长通常需要消费者主动要求。把暂停当做法条引用会误导审计结论。
+        clock_stop_allowed=False,
+        max_clock_stop_days=0,
+        citation="Cal. Civ. Code §1798.130(a)(2)(B)",
+        clock_stop_citation="不适用：CCPA/CPRA 无明文时钟暂停条款，"
+                            "仅有 §1798.130(a)(2)(B) 的 45 天延长机制",
         notes="确认收到请求后 45 天内答复，可再延 45 天（须通知）。"
-              "CPRA 下「确认收到」的时点为完整受理之时，故本实现以 received_date 起算。",
+              "CPRA 下「确认收到」的时点为完整受理之时，故本实现以 received_date 起算。"
+              "本实现不对 CA 施加时钟暂停——CCPA 无此法定机制。",
     ),
     "CN": DeadlinePolicy(
         jurisdiction="CN",
@@ -165,12 +186,16 @@ POLICIES: dict[str, DeadlinePolicy] = {
         deadline_days=15,
         extension_days=15,
         max_extensions=0,
-        clock_stop_allowed=True,
-        max_clock_stop_days=30,
+        # PIPL 亦无明文时钟暂停条款。第 50 条讲的是查阅复制权的响应义务，
+        # 不是暂停答复期限的授权。这里保留开关仅为演示内部策略配置能力。
+        clock_stop_allowed=False,
+        max_clock_stop_days=0,
         citation="PIPL 第 50 条 / 第 45-47 条",
-        clock_stop_citation="PIPL 第 50 条",
-        notes="【简化假设】法条表述为「十五个工作日」。本实现按自然日 15 天计算，"
-              "未接入法定节假日日历，因此 CN 的到期日仅供演示，不代表真实合规结论。",
+        clock_stop_citation="不适用：PIPL 无明文时钟暂停条款",
+        notes="【简化假设】实务口径常称「十五个工作日」。本实现按自然日 15 天计算，"
+              "未接入法定节假日日历，因此 CN 的到期日仅供演示，不代表真实合规结论。"
+              "另：PIPL 第 50 条规定的是查阅、复制请求的响应义务，"
+              "并非暂停答复期限的条款依据。",
     ),
 }
 
@@ -200,7 +225,7 @@ def compute_deadline(received, policy: DeadlinePolicy, extensions: int = 0,
 
     base = 收到日 + 期限（按对应日加月，或按天）
     ext  = base + 延长量（仅在合法延长时传入 extensions=1）
-    最终 = ext + 时钟暂停天数（Art. 12(6)，但受 max_clock_stop_days 上限约束）
+    最终 = ext + 时钟暂停天数（行业实践，受 max_clock_stop_days 上限约束）
 
     extensions 会被夹到 [0, max_extensions]，防止请求方任意拉长期限。
     """
@@ -291,7 +316,7 @@ def extension_is_valid(received, policy: DeadlinePolicy, notified_at,
 
 
 # ============================================
-# 时钟暂停（Art. 12(6)）
+# 时钟暂停（行业实践 —— GDPR 无明文条款，Art. 12(6) 只授权身份核验）
 # ============================================
 
 
@@ -305,7 +330,7 @@ def clock_stop_is_valid(policy: DeadlinePolicy, already_stopped_days: int,
     if requested_days > remaining:
         return False, (f"本次申请暂停 {requested_days} 天超出剩余额度 {remaining} 天"
                        f"（上限 {policy.max_clock_stop_days} 天）")
-    return True, "时钟暂停符合 Art. 12(6)"
+    return True, "时钟暂停符合法域策略上限（行业实践，非 GDPR 明文条款）"
 
 
 # ============================================
@@ -430,7 +455,7 @@ def build_deadline_view(received, jurisdiction: str, due_date, today,
 
     effective = extended_due_date if (effective_granted and extended_due_date) else due_date
 
-    # Art. 12(6) 时钟暂停要叠加到有效到期日上。
+    # 时钟暂停天数要叠加到有效到期日上。
     # 入库时的 due_date 是「受理即起算」算出来的原始期限，不含之后累积的暂停天数，
     # 所以快照必须在这里补上 —— 否则「已向对方索要信息」的请求会被误判为超期。
     if clock_stopped_days and policy.clock_stop_allowed:

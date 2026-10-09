@@ -238,7 +238,7 @@ def _demo_requests(today: date) -> list[dict]:
         mk("DSAR-0009", "REQ-006", "ACCESS", "EU", 120, "EXPIRED",
            channel="WEB_FORM", priority="LOW",
            closed_at=(today - timedelta(days=40)).isoformat(),
-           outcome_summary="身份核验多次未通过且长期无响应，按 Art. 12(6) 实践关闭"),
+           outcome_summary="身份核验多次未通过且长期无响应，按内部老化策略关闭"),
         # 部分完成：部分系统因留存义务排除
         mk("DSAR-0010", "REQ-003", "ERASURE", "CA", 35, "PARTIALLY_COMPLETED",
            channel="WEB_FORM", priority="NORMAL", assigned_to="analyst-c",

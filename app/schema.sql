@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS dsar_requests (
     extended_due_date     TEXT,                            -- 延长后到期日
     extension_notified_at TEXT,                            -- Art.12(3)：必须在一个月的期限届满前通知
     extension_reason      TEXT,
-    clock_stopped_days    INTEGER NOT NULL DEFAULT 0,      -- Art.12(6)：等待数据主体补充信息时时钟暂停的天数
+    clock_stopped_days    INTEGER NOT NULL DEFAULT 0,      -- 时钟暂停天数（行业实践；Art.12(6) 只授权身份核验）
     clarification_rounds  INTEGER NOT NULL DEFAULT 0,
     assigned_to           TEXT,
     priority              TEXT NOT NULL DEFAULT 'NORMAL',  -- LOW / NORMAL / HIGH / CRITICAL

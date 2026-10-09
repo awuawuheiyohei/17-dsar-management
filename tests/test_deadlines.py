@@ -242,7 +242,7 @@ class TestExtensionValidity:
 
 
 # ============================================
-# 时钟暂停（Art. 12(6)）
+# 时钟暂停（行业实践 —— GDPR 无明文条款）
 # ============================================
 class TestClockStop:
     def test_valid_within_quota(self):
@@ -344,15 +344,42 @@ class TestDeadlineView:
     def test_clock_stopped_days_shown(self):
         v = self._base(due_date="2026-04-25", clock_stopped_days=15)
         assert v.clock_stopped_days == 15
-        assert "Art. 12(6)" in v.explanation
+        assert "15" in v.explanation
+
+    def test_clock_stop_does_not_misattribute_art_12_6(self):
+        """
+        回归测试：Art. 12(6) 的原文只授权「对身份有合理怀疑时要求补充信息」，
+        与「暂停 Art. 12(3) 答复期限」无关。GDPR 没有明文时钟暂停条款。
+        把惯例说成法条会误导法务复核，因此快照输出不得出现该误引。
+        """
+        v = self._base(due_date="2026-04-25", clock_stopped_days=15)
+        clock_part = v.explanation.split("时钟暂停")[-1]
+        assert "Art. 12(6)" not in clock_part, \
+            "时钟暂停不得引用 Art. 12(6)——该条只授权身份核验"
+        assert "行业实践" in clock_part, \
+            "时钟暂停应明确标注为行业实践而非成文法条款"
+
+    def test_identity_verification_still_cites_art_12_6(self):
+        """对照：身份核验用 Art. 12(6) 是正确的，不能被误改"""
+        from app.models import workflow
+        labels = workflow.GUARD_LABELS
+        assert any("12(6)" in v for v in labels.values()), \
+            "身份核验依据 Art. 12(6) 的说明应保留"
+        assert labels["requires_verified_identity"].startswith("身份核验尚未通过")
 
     def test_clock_stop_citation_is_jurisdiction_specific(self):
-        """CA 请求不该引用 GDPR 的 Art.12(6)"""
+        """CA 请求不该引用 GDPR 条款，且 CCPA 无明文时钟暂停机制"""
         v = dl.build_deadline_view(received="2026-08-21", jurisdiction="CA",
                                    due_date="2026-10-05", today=date(2026, 10, 1),
                                    clock_stopped_days=7, request_status="IN_PROGRESS")
         assert "Cal. Civ. Code" in v.explanation
         assert "Art. 12(6)" not in v.explanation
+
+    def test_ca_and_cn_have_no_statutory_clock_stop(self):
+        """回归：CCPA 与 PIPL 均无明文时钟暂停条款，不应开启该机制"""
+        for jur in ("CA", "CN"):
+            assert dl.POLICIES[jur].clock_stop_allowed is False, \
+                f"{jur} 法域无明文时钟暂停条款，不应开启"
 
     def test_clock_stop_cash_extends_effective_due_date(self):
         """入库 due_date 不含暂停天数，快照必须补上，否则会被误判超期"""

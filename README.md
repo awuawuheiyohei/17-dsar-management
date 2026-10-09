@@ -63,7 +63,7 @@
 | Art. 12(3) | 收到后 1 个月内答复；复杂情形可延长 2 个月，**但须在同一期限内通知** | `deadlines.extension_is_valid` |
 | Art. 12(4) | 拒绝须告知理由，且须在合理期限内 | `denial_reasons` 受控词表 + `POST /api/requests/{id}/deny` |
 | Art. 12(5) | 明显无依据或重复的过度请求可收费或拒绝 | `ART_12_5_REPEATED` |
-| Art. 12(6) | **核实身份后方可处理**；补充信息期间时钟暂停 | `verification.py` + `workflow.GUARDS` + `clock_stop` |
+| Art. 12(6) | **核实身份后方可处理**（该条只授权身份核验，不授权时钟暂停） | `verification.py` + `workflow.GUARDS` |
 | Art. 15(3) | 数据副本须以通用机器可读格式提供 | `format: JSON / CSV / SECURE_LINK` |
 | Art. 15(4) | 不得损害他人的权利与自由 | `redaction` 第三方数据剥离 |
 | Art. 17(3) | 删除权的除外情形（法律义务、法律主张、公共利益等） | `ART_17_3_A/B/E` 拒绝理由 |
@@ -93,8 +93,17 @@ GDPR Art. 12(3) 的表述是「**一个月**（one month）」，不是 30 天�
 所以本项目的设计是：**没有合法的通知记录，延长不予采信**，到期日仍按原始期限算，
 并在 `warnings` 里说明原因。系统不会因为「我已经决定延期」就自动给请求宽限。
 
-**时钟暂停（Art. 12(6)）必须建模。** 向数据主体索取补充信息期间期限暂停。
+**时钟暂停必须建模，但要如实标注它不是法条。** 向数据主体索取补充信息期间期限暂停，
 若不实现这一条，所有「已向对方索要信息」的请求都会被误判为超期。
+
+> ⚠️ **法条引用更正**：GDPR **没有**明文的「时钟暂停」条款。
+> Art. 12(6) 的原文是「对请求者身份有合理怀疑时，可要求提供确认身份所需的补充信息」，
+> 它授权的是**身份核验**；Art. 12(3) 规定的是「自收到请求起一个月内答复」。
+> 实务中把「等待补充信息期间不计逾期」称为 clock stop，其依据是 Art. 12(3) 的
+> *without undue delay* 义务与「请求被完整提出后才起算」的行业口径（EDPB 指南），
+> **属于惯例而非成文法条款**。同样，CCPA/CPRA 与 PIPL 均无明文时钟暂停机制。
+> 本项目因此对 EU/UK 开启暂停、但把依据标注为「行业实践」，对 CA/CN 直接关闭该开关——
+> 把惯例说成法条会让法务复核时得出错误结论。
 
 法域策略（`GET /api/deadlines/policies`，可配置、可测试）：
 
@@ -323,7 +332,7 @@ smoke test 校验的不是「接口通不通」，而是**强制控制是否真�
 | GET | `/api/requests/{id}` | 详情（期限快照、合法后继状态、检索、审计链） |
 | PATCH | `/api/requests/{id}/status` | **状态机唯一入口**（非法流转返回 400 + 原因） |
 | POST | `/api/requests/{id}/extend` | Art. 12(3) 延长（校验通知证据） |
-| POST | `/api/requests/{id}/clarify` | Art. 12(6) 澄清请求（时钟暂停） |
+| POST | `/api/requests/{id}/clarify` | 澄清请求（时钟暂停，行业实践） |
 | POST | `/api/requests/{id}/deny` | 拒绝（受控理由 + 说明 + 审批） |
 | POST | `/api/requests/{id}/verify` | 发起身份核验（返回评分与决策） |
 | POST | `/api/verify/{vid}/submit` | 提交核验凭证 |
@@ -387,7 +396,7 @@ smoke test 校验的不是「接口通不通」，而是**强制控制是否真�
 
 | # | 缺陷 | 现象 | 修复 |
 |---|---|---|---|
-| 1 | 期限快照漏算时钟暂停 | 入库 `due_date` 是受理时算的原始期限，`build_deadline_view` 直接读取它，导致 Art. 12(6) 暂停天数**完全没生效** —— 索要过补充信息的请求被误判超期 | 在 `deadlines.build_deadline_view` 统一叠加暂停天数（受法域上限约束），并补测试 `test_clock_stop_extends_effective_due_date` |
+| 1 | 期限快照漏算时钟暂停 | 入库 `due_date` 是受理时算的原始期限，`build_deadline_view` 直接读取它，导致时钟暂停天数**完全没生效** —— 索要过补充信息的请求被误判超期 | 在 `deadlines.build_deadline_view` 统一叠加暂停天数（受法域上限约束），并补测试 `test_clock_stop_extends_effective_due_date` |
 | 2 | 拒绝后请求永远关不掉 | 拒绝时把未收敛任务批量置 `WAIVED`，但 `WAIVED` 在模型里是**阻塞态**（待人确认的豁免），导致 `open_count` 永不为 0，请求无法关闭 | 改为 `EXCLUDED`（收敛态），并写明依据条款；补 `test_denial_closes_open_tasks` |
 | 3 | 延长校验逻辑自相矛盾 | `build_deadline_view` 里为「检查延期是否合法」反过来调 `extension_is_valid`，其中又要求填写理由 —— 而回看快照时库里本就有理由，产生死循环式重复校验和错误回落 | 拆出 `require_reason` 参数：回看场景只校验通知证据的时效，不重复要求理由 |
 | 4 | 未知风险信号静默失效 | 核验评估对无法识别的信号直接跳过，调用方拼错字符串（如 `"mail_mismatch"`）时会**无声地少扣分**，看起来更安全实则是绕过 | API 层在进入引擎前校验信号合法性并返回 400；引擎内保留忽略逻辑并加注释说明 |
